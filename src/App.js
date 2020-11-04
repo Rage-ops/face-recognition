@@ -8,16 +8,11 @@ import FaceRecognition from './Components/FaceRecognition/FaceRecognition';
 import Signin from './Components/Signin/Signin';
 import Register from './Components/Register/Register';
 import Particles from 'react-particles-js';
-import Clarifai from 'clarifai';
-
-const app = new Clarifai.App({
-  apiKey: 'YOUR API KEY HERE'
-});
 
 const particles_params = {
   particles: {
     number: {
-      value: 100,
+      value: 90,
       density: {
         enable: true,
         value_area: 800
@@ -25,38 +20,28 @@ const particles_params = {
     }
   }
 }
+
+const initalState = {
+  input: '',
+  imageUrl: '',
+  faceBoxes: [],
+  route: 'signin',
+  isSignedin: false,
+  user: {
+    id: '',
+    name: '',
+    email:'',
+    pass:'',
+    entries: 0,
+    joined: ''
+  }
+}
+
 class App extends Component {
   constructor() {
     super();
-    this.state = {
-      input: '',
-      imageUrl: '',
-      faceBoxes: [],
-      route: 'signin',
-      isSignedin: false,
-      user: {
-        id: '',
-        name: '',
-        email:'',
-        pass:'',
-        entries: 0,
-        joined: ''
-      }
-    }
+    this.state = initalState;
   }
- 
-  // componentDidMount(){
-  //   fetch('http://localhost:3000/')
-  //   .then(res => {
-  //     return res.json();
-  //   })
-  //   .then(data => {
-  //     console.log(data);
-  //   })
-  //   .catch(err => {
-  //     console.log(err);
-  //   })
-  // }
 
   onInputChange = (event) => {
     this.setState({ input: event.target.value });
@@ -78,33 +63,37 @@ class App extends Component {
 
   onDetectClick = () => { 
     this.setState({ imageUrl: this.state.input });
-    app.models.predict
-      (Clarifai.FACE_DETECT_MODEL,
-        this.state.input)
-      .then(response => {
-
-        if (response){
-          fetch('http://localhost:3000/image',{
-            method:'put',
-            headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({
-                id: this.state.user.id
-            })
-          })
-          .then(response => response.json())
-          .then(count => {
-            this.setState(
-              Object.assign(this.state.user, { entries: count })
-            )
-          })
-        }
-        let faces_detected = []
-        for(let i=0; i<response.outputs[0].data.regions.length;i++){
-          let faces = response.outputs[0].data.regions[i]
-          faces_detected.push(this.calculateBoundingBox(faces.region_info.bounding_box, i))
-        }
-        this.setState({ faceBoxes: faces_detected });
+    fetch('https://fast-oasis-14486.herokuapp.com/imageurl',{
+      method:'post',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+          input: this.state.input
       })
+    })
+    .then(response => response.json())
+    .then(response => {
+      let faces_detected = []
+      if (response !== 'Unable to work with api' && response.outputs[0].data.regions){
+        fetch('https://fast-oasis-14486.herokuapp.com/image',{
+          method:'put',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({
+              id: this.state.user.id
+          })
+        })
+        .then(res => res.json())
+        .then(count => {
+          this.setState(Object.assign(this.state.user, { entries: count }))
+          faces_detected = response.outputs[0].data.regions.map((faces, i) => {
+            return this.calculateBoundingBox(faces.region_info.bounding_box, i);
+          })
+          this.setState({ faceBoxes: faces_detected });
+        })
+        .catch(console.log)
+      }
+      this.setState({ faceBoxes: faces_detected });
+    })
+    .catch(err => console.log(err));
   }
 
   onRouteChange = (to) => {
@@ -112,7 +101,7 @@ class App extends Component {
       this.setState({isSignedin: true})
     }
     else if (to === 'signin'){
-      this.setState({isSignedin: false})
+      this.setState(initalState);
     }
     this.setState({ route : to})
   }
@@ -131,7 +120,6 @@ class App extends Component {
   }
 
   render() {
-    console.log(this.state.user)
     return (
       <div className="App">
         <Particles className='particles'

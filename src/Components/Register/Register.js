@@ -23,14 +23,14 @@ class Register extends Component {
     }
 
     onSubmit = () => {
-        fetch('http://localhost:3000/Register', {
+        fetch('https://fast-oasis-14486.herokuapp.com/register', {
             method: 'post',
             headers:{'Content-Type':'application/json'},
             body: JSON.stringify(this.state)
         })
         .then(res => res.json())
         .then(user => {
-            if(user){
+            if(user.id){
                 this.props.loadUser(user)
                 this.props.onRouteChange('home')
             }
